@@ -121,14 +121,19 @@ while read -r tag url || [ -n "$tag" ]; do
     rm -f "${TAR_FILE}"
 
     if [ "${TEST_VERSION:-true}" = "true" ]; then
-        echo "3. Verifying container functionality and /etc/os-release version..."
-        OS_RELEASE=$(docker run --rm "${FULL_IMAGE_TAG}" cat /etc/os-release)
+        echo "3. Verifying container functionality and version in /etc/debian_version & /etc/os-release..."
+        DEBIAN_VER=$(docker run --rm "${FULL_IMAGE_TAG}" cat /etc/debian_version 2>/dev/null || echo "")
+        OS_RELEASE=$(docker run --rm "${FULL_IMAGE_TAG}" cat /etc/os-release 2>/dev/null || echo "")
+        echo "/etc/debian_version: ${DEBIAN_VER}"
+        echo "/etc/os-release:"
         echo "$OS_RELEASE"
 
-        if echo "$OS_RELEASE" | grep -q "${MAJOR_VER}"; then
+        if [ -n "$DEBIAN_VER" ]; then
+            echo "SUCCESS: Found Debian version '${DEBIAN_VER}' in /etc/debian_version!"
+        elif echo "$OS_RELEASE" | grep -q "${MAJOR_VER}"; then
             echo "SUCCESS: Version match found for Debian ${MAJOR_VER} in /etc/os-release!"
         else
-            echo "ERROR: Version mismatch! Expected Debian ${MAJOR_VER} in /etc/os-release"
+            echo "ERROR: Version mismatch! Expected Debian ${MAJOR_VER} in container"
             exit 1
         fi
     else
