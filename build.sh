@@ -71,22 +71,30 @@ while read -r tag url || [ -n "$tag" ]; do
         continue
     fi
 
-    NEEDS_DOCKERHUB_PUSH=true
-    NEEDS_GHCR_PUSH=true
+    NEEDS_DOCKERHUB_PUSH=false
+    NEEDS_GHCR_PUSH=false
 
-    if [ "${CHECK_REMOTE_TAGS:-true}" = "true" ]; then
-        if docker manifest inspect "${FULL_IMAGE_TAG}" &>/dev/null; then
-            echo "Tag ${FULL_IMAGE_TAG} exists on Docker Hub."
-            NEEDS_DOCKERHUB_PUSH=false
-        else
-            echo "Tag ${FULL_IMAGE_TAG} missing on Docker Hub."
+    if [ "${SKIP_EXISTS_CHECK:-false}" = "true" ] || [ "${CHECK_REMOTE_TAGS:-true}" = "false" ]; then
+        echo "SKIP_EXISTS_CHECK is true (or CHECK_REMOTE_TAGS is false). Forcing build and push for ${tag}..."
+        [ "${PUSH_TO_DOCKERHUB:-false}" = "true" ] && NEEDS_DOCKERHUB_PUSH=true
+        [ "${PUSH_TO_GHCR:-false}" = "true" ] && NEEDS_GHCR_PUSH=true
+    else
+        if [ "${PUSH_TO_DOCKERHUB:-false}" = "true" ]; then
+            if ! docker manifest inspect "${FULL_IMAGE_TAG}" &>/dev/null && ! curl -sfSL "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${tag}/" &>/dev/null; then
+                echo "Tag ${FULL_IMAGE_TAG} missing on Docker Hub."
+                NEEDS_DOCKERHUB_PUSH=true
+            else
+                echo "Tag ${FULL_IMAGE_TAG} exists on Docker Hub."
+            fi
         fi
 
-        if docker manifest inspect "${FULL_GHCR_TAG}" &>/dev/null; then
-            echo "Tag ${FULL_GHCR_TAG} exists on GHCR."
-            NEEDS_GHCR_PUSH=false
-        else
-            echo "Tag ${FULL_GHCR_TAG} missing on GHCR."
+        if [ "${PUSH_TO_GHCR:-false}" = "true" ]; then
+            if ! docker manifest inspect "${FULL_GHCR_TAG}" &>/dev/null; then
+                echo "Tag ${FULL_GHCR_TAG} missing on GHCR."
+                NEEDS_GHCR_PUSH=true
+            else
+                echo "Tag ${FULL_GHCR_TAG} exists on GHCR."
+            fi
         fi
 
         if [ "${NEEDS_DOCKERHUB_PUSH}" = "false" ] && [ "${NEEDS_GHCR_PUSH}" = "false" ]; then
