@@ -1,7 +1,7 @@
 12.0 https://cloud.debian.org/images/cloud/bookworm/20230612-1409/debian-12-nocloud-amd64-20230612-1409.tar.xz
 12.1 https://cloud.debian.org/images/cloud/bookworm/20230723-1450/debian-12-nocloud-amd64-20230723-1450.tar.xz
 12.2 https://cloud.debian.org/images/cloud/bookworm/20231013-1532/debian-12-nocloud-amd64-20231013-1532.tar.xz
-12.4 https://cloud.debian.org/images/cloud/bookworm/20231210-1590/debian-12-nocloud-amd64-20231210-1590.tar.xz
+12.4 https://cloud.debian.org/images/cloud/bookworm/20231210-1591/debian-12-nocloud-amd64-20231210-1591.tar.xz
 12.5 https://cloud.debian.org/images/cloud/bookworm/20240211-1654/debian-12-nocloud-amd64-20240211-1654.tar.xz
 12.6 https://cloud.debian.org/images/cloud/bookworm/20240701-1795/debian-12-nocloud-amd64-20240701-1795.tar.xz
 12.7 https://cloud.debian.org/images/cloud/bookworm/20240901-1857/debian-12-nocloud-amd64-20240901-1857.tar.xz
@@ -17,6 +17,6 @@
 13.1 https://cloud.debian.org/images/cloud/trixie/20250911-2232/debian-13-nocloud-amd64-20250911-2232.tar.xz
 13.2 https://cloud.debian.org/images/cloud/trixie/20251117-2299/debian-13-nocloud-amd64-20251117-2299.tar.xz
 13.3 https://cloud.debian.org/images/cloud/trixie/20260112-2355/debian-13-nocloud-amd64-20260112-2355.tar.xz
-13.4 https://cloud.debian.org/images/cloud/trixie/20260313-2415/debian-13-nocloud-amd64-20260313-2415.tar.xz
+13.4 https://cloud.debian.org/images/cloud/trixie/20260316-2418/debian-13-nocloud-amd64-20260316-2418.tar.xz
 13.5 https://cloud.debian.org/images/cloud/trixie/20260518-2482/debian-13-nocloud-amd64-20260518-2482.tar.xz
 13.6 https://cloud.debian.org/images/cloud/trixie/20260712-2537/debian-13-nocloud-amd64-20260712-2537.tar.xz

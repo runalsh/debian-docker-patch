@@ -3,6 +3,7 @@ import os
 import re
 import sys
 import io
+import json
 import tarfile
 import urllib.request
 import datetime
@@ -38,29 +39,24 @@ def load_existing_releases(releases_path):
                     existing.add(parts[0])
     return existing
 
-def inspect_os_release(tar_url):
-    req = urllib.request.Request(tar_url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        tf = tarfile.open(fileobj=resp, mode="r|xz")
-        for member in tf:
-            if (member.name.endswith("usr/lib/os-release") or member.name.endswith("etc/os-release")) and member.isfile():
-                f = tf.extractfile(member)
-                if f:
-                    content = f.read().decode("utf-8")
-                    v_id = None
-                    v_str = None
-                    for line in content.splitlines():
-                        if line.startswith("VERSION_ID="):
-                            v_id = line.split("=", 1)[1].strip('"\'')
-                        elif line.startswith("VERSION="):
-                            v_str = line.split("=", 1)[1].strip('"\'')
-                    if v_id:
-                        return v_id
-                    if v_str:
-                        m = re.search(r"(\d+(?:\.\d+)?)", v_str)
+def inspect_os_release(json_url, track_ver):
+    req = urllib.request.Request(json_url, headers={"User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            for item in data.get("items", []):
+                packages = item.get("data", {}).get("packages", [])
+                for pkg in packages:
+                    if pkg.get("name") == "base-files":
+                        ver_str = pkg.get("version", "")
+                        m = re.search(r"deb\d+u(\d+)", ver_str)
                         if m:
-                            return m.group(1)
-                break
+                            minor = m.group(1)
+                            return f"{track_ver}.{minor}"
+                        if ver_str.startswith(f"{track_ver}."):
+                            return ver_str.split("+")[0]
+    except Exception:
+        pass
     return None
 
 def update_readme_table(tag, track_ver):
@@ -107,9 +103,10 @@ def main():
 
         for folder in reversed(folders):
             tar_url = f"{track['url']}{folder}/debian-{track_ver}-nocloud-amd64-{folder}.tar.xz"
+            json_url = f"{track['url']}{folder}/debian-{track_ver}-nocloud-amd64-{folder}.json"
             try:
                 # Check URL existence via HEAD request
-                head_req = urllib.request.Request(tar_url, method="HEAD", headers={"User-Agent": "Mozilla/5.0"})
+                head_req = urllib.request.Request(json_url, method="HEAD", headers={"User-Agent": "Mozilla/5.0"})
                 with urllib.request.urlopen(head_req, timeout=10) as resp:
                     if resp.status != 200:
                         continue
@@ -117,7 +114,7 @@ def main():
                 continue
 
             try:
-                tag = inspect_os_release(tar_url)
+                tag = inspect_os_release(json_url, track_ver)
                 if not tag:
                     continue
 
