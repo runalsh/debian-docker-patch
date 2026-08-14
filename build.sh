@@ -21,6 +21,7 @@ fi
 
 IMAGE_NAME="runalsh/debian-patch"
 RELEASES_FILE="releases.txt"
+MISMATCHED_TAGS=()
 
 if [ ! -f "$RELEASES_FILE" ]; then
     echo "Error: $RELEASES_FILE not found!"
@@ -128,13 +129,20 @@ while read -r tag url || [ -n "$tag" ]; do
         echo "/etc/os-release:"
         echo "$OS_RELEASE"
 
-        if [ -n "$DEBIAN_VER" ]; then
-            echo "SUCCESS: Found Debian version '${DEBIAN_VER}' in /etc/debian_version!"
-        elif echo "$OS_RELEASE" | grep -q "${MAJOR_VER}"; then
-            echo "SUCCESS: Version match found for Debian ${MAJOR_VER} in /etc/os-release!"
+        IS_MISMATCH=false
+        if [ "$DEBIAN_VER" = "$tag" ]; then
+            echo "SUCCESS: Exact version match '${DEBIAN_VER}' in /etc/debian_version!"
         else
-            echo "ERROR: Version mismatch! Expected Debian ${MAJOR_VER} in container"
-            exit 1
+            echo "ERROR: Version mismatch! Container /etc/debian_version is '${DEBIAN_VER}', expected '${tag}'!"
+            MISMATCHED_TAGS+=("${tag} (found ${DEBIAN_VER:-unknown})")
+            IS_MISMATCH=true
+        fi
+
+        if [ "$IS_MISMATCH" = "true" ]; then
+            echo "Skipping push for mismatched tag ${tag}."
+            rm -f "${TAR_FILE}"
+            echo
+            continue
         fi
     else
         echo "3. Skipping version verification (TEST_VERSION is false)."
@@ -219,4 +227,15 @@ while read -r tag url || [ -n "$tag" ]; do
     echo
 done < "$RELEASES_FILE"
 
-echo "All images processed successfully!"
+if [ ${#MISMATCHED_TAGS[@]} -gt 0 ]; then
+    echo "=========================================="
+    echo "SUMMARY: Version mismatches detected!"
+    echo "The following tags failed verification:"
+    for m in "${MISMATCHED_TAGS[@]}"; do
+        echo "  - ${m}"
+    done
+    echo "=========================================="
+    exit 1
+else
+    echo "All images processed and verified successfully!"
+fi

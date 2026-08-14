@@ -1,6 +1,6 @@
 12.0 https://cloud.debian.org/images/cloud/bookworm/20230612-1409/debian-12-nocloud-amd64-20230612-1409.tar.xz
 12.1 https://cloud.debian.org/images/cloud/bookworm/20230723-1450/debian-12-nocloud-amd64-20230723-1450.tar.xz
-12.2 https://cloud.debian.org/images/cloud/bookworm/20231004-1523/debian-12-nocloud-amd64-20231004-1523.tar.xz
+12.2 https://cloud.debian.org/images/cloud/bookworm/20231013-1532/debian-12-nocloud-amd64-20231013-1532.tar.xz
 12.4 https://cloud.debian.org/images/cloud/bookworm/20231210-1590/debian-12-nocloud-amd64-20231210-1590.tar.xz
 12.5 https://cloud.debian.org/images/cloud/bookworm/20240211-1654/debian-12-nocloud-amd64-20240211-1654.tar.xz
 12.6 https://cloud.debian.org/images/cloud/bookworm/20240701-1795/debian-12-nocloud-amd64-20240701-1795.tar.xz
