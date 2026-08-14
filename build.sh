@@ -1,6 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+# Ensure required dependencies are installed (for Ubuntu / Debian host)
+if command -v apt-get &>/dev/null; then
+    MISSING_PKGS=()
+    command -v curl &>/dev/null || MISSING_PKGS+=("curl")
+    command -v docker &>/dev/null || MISSING_PKGS+=("docker.io")
+    command -v tar &>/dev/null || MISSING_PKGS+=("tar")
+    command -v xz &>/dev/null || MISSING_PKGS+=("xz-utils")
+
+    if [ ${#MISSING_PKGS[@]} -gt 0 ]; then
+        echo "Installing missing dependencies: ${MISSING_PKGS[*]}..."
+        SUDO_CMD=""
+        if [ "$(id -u)" -ne 0 ] && command -v sudo &>/dev/null; then
+            SUDO_CMD="sudo"
+        fi
+        $SUDO_CMD apt-get update -qq && $SUDO_CMD apt-get install -y -qq "${MISSING_PKGS[@]}"
+    fi
+fi
+
 IMAGE_NAME="runalsh/debian-patch"
 RELEASES_FILE="releases.txt"
 
@@ -44,29 +62,30 @@ while read -r tag url || [ -n "$tag" ]; do
     IS_OVERALL_LATEST=false
     if [ "$tag" = "$OVERALL_LATEST" ]; then
         IS_OVERALL_LATEST=true
-        echo "Tag ${tag} is overall latest release. Will tag as latest!"
+        echo "Tag ${tag} is overall latest. Will tag as latest!"
     fi
 
-    NEEDS_DOCKERHUB_PUSH=false
-    NEEDS_GHCR_PUSH=false
+    TARGET_ARG="${1:-all}"
+    if [ "$TARGET_ARG" != "all" ] && [ "$TARGET_ARG" != "$tag" ]; then
+        continue
+    fi
 
-    if [ "${SKIP_EXISTS_CHECK:-false}" = "true" ]; then
-        echo "SKIP_EXISTS_CHECK is true. Forcing build and push for ${tag}..."
-        [ "${PUSH_TO_DOCKERHUB:-false}" = "true" ] && NEEDS_DOCKERHUB_PUSH=true
-        [ "${PUSH_TO_GHCR:-false}" = "true" ] && NEEDS_GHCR_PUSH=true
-    else
-        if [ "${PUSH_TO_DOCKERHUB:-false}" = "true" ]; then
-            if ! docker manifest inspect "${FULL_IMAGE_TAG}" &>/dev/null && ! curl -sfSL "https://hub.docker.com/v2/repositories/${IMAGE_NAME}/tags/${tag}/" &>/dev/null; then
-                echo "Tag ${FULL_IMAGE_TAG} missing on Docker Hub."
-                NEEDS_DOCKERHUB_PUSH=true
-            fi
+    NEEDS_DOCKERHUB_PUSH=true
+    NEEDS_GHCR_PUSH=true
+
+    if [ "${CHECK_REMOTE_TAGS:-true}" = "true" ]; then
+        if docker manifest inspect "${FULL_IMAGE_TAG}" &>/dev/null; then
+            echo "Tag ${FULL_IMAGE_TAG} exists on Docker Hub."
+            NEEDS_DOCKERHUB_PUSH=false
+        else
+            echo "Tag ${FULL_IMAGE_TAG} missing on Docker Hub."
         fi
 
-        if [ "${PUSH_TO_GHCR:-false}" = "true" ]; then
-            if ! docker manifest inspect "${FULL_GHCR_TAG}" &>/dev/null; then
-                echo "Tag ${FULL_GHCR_TAG} missing on GHCR."
-                NEEDS_GHCR_PUSH=true
-            fi
+        if docker manifest inspect "${FULL_GHCR_TAG}" &>/dev/null; then
+            echo "Tag ${FULL_GHCR_TAG} exists on GHCR."
+            NEEDS_GHCR_PUSH=false
+        else
+            echo "Tag ${FULL_GHCR_TAG} missing on GHCR."
         fi
 
         if [ "${NEEDS_DOCKERHUB_PUSH}" = "false" ] && [ "${NEEDS_GHCR_PUSH}" = "false" ]; then
@@ -80,11 +99,26 @@ while read -r tag url || [ -n "$tag" ]; do
 
     TAR_FILE="temp_rootfs_${tag}.tar.xz"
 
-    echo "1. Downloading rootfs..."
+    echo "1. Downloading image archive..."
     curl -fSL -o "${TAR_FILE}" "${url}"
 
-    echo "2. Importing rootfs into Docker as ${FULL_IMAGE_TAG}..."
-    docker import "${TAR_FILE}" "${FULL_IMAGE_TAG}"
+    echo "2. Extracting rootfs and importing into Docker as ${FULL_IMAGE_TAG}..."
+    ABS_TAR_PATH="$(pwd)/${TAR_FILE}"
+    docker run --rm --privileged -v "${ABS_TAR_PATH}:/work/rootfs.tar.xz:ro" alpine sh -c '
+        apk add --no-cache tar xz 7zip >/dev/null 2>&1
+        mkdir -p /tmp/parts /tmp/mount_rootfs
+        tar -xf /work/rootfs.tar.xz -C /tmp/parts
+        7z x /tmp/parts/disk.raw -o/tmp/parts 0.img -y >/dev/null 2>&1 || true
+        if [ -f /tmp/parts/0.img ]; then
+            mount -o loop,ro /tmp/parts/0.img /tmp/mount_rootfs
+        else
+            mount -o loop,ro /tmp/parts/disk.raw /tmp/mount_rootfs
+        fi
+        tar -C /tmp/mount_rootfs -c .
+        umount /tmp/mount_rootfs
+    ' | docker import - "${FULL_IMAGE_TAG}"
+
+    rm -f "${TAR_FILE}"
 
     if [ "${TEST_VERSION:-true}" = "true" ]; then
         echo "3. Verifying container functionality and /etc/os-release version..."
