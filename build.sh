@@ -109,9 +109,9 @@ while read -r tag url || [ -n "$tag" ]; do
     TAR_FILE="temp_rootfs_${tag}.tar.xz"
 
     echo "1. Downloading image archive..."
-    curl -fSL -o "${TAR_FILE}" "${url}"
+    curl -fSL -sS --show-error -o "${TAR_FILE}" "${url}"
 
-    echo "2. Extracting rootfs and importing into Docker as ${FULL_IMAGE_TAG}..."
+    echo "2. Extracting and optimizing rootfs (excluding kernel, modules, grub, caches, docs)..."
     ABS_TAR_PATH="$(pwd)/${TAR_FILE}"
     docker run --rm --privileged -v "${ABS_TAR_PATH}:/work/rootfs.tar.xz:ro" alpine sh -c '
         apk add --no-cache tar xz 7zip >/dev/null 2>&1
@@ -123,9 +123,9 @@ while read -r tag url || [ -n "$tag" ]; do
         else
             mount -o loop,ro /tmp/parts/disk.raw /tmp/mount_rootfs
         fi
-        tar -C /tmp/mount_rootfs -c .
+        tar -C /tmp/mount_rootfs             --exclude="./usr/lib/modules"             --exclude="./lib/modules"             --exclude="./boot/vmlinuz*"             --exclude="./boot/initrd*"             --exclude="./boot/System.map*"             --exclude="./boot/config*"             --exclude="./usr/lib/grub"             --exclude="./boot/grub"             --exclude="./etc/grub.d"             --exclude="./var/cache/apt/*"             --exclude="./var/lib/apt/lists/*"             --exclude="./usr/share/doc/*"             --exclude="./usr/share/man/*"             --exclude="./usr/share/info/*"             --exclude="./tmp/*"             --exclude="./var/log/*"             --exclude="./var/tmp/*"             -c .
         umount /tmp/mount_rootfs
-    ' | docker import - "${FULL_IMAGE_TAG}"
+    ' | docker import       -c 'ENV LANG=C.UTF-8'       -c 'CMD ["/bin/bash"]'       - "${FULL_IMAGE_TAG}"
 
     rm -f "${TAR_FILE}"
 
@@ -216,7 +216,7 @@ while read -r tag url || [ -n "$tag" ]; do
             docker push "${GHCR_LATEST_TAG}" || true
         fi
 
-        if [ "${CLEANUP_DOCKER_IMAGES:-false}" = "true" ]; then
+        if [ "${CLEANUP_DOCKER_IMAGES:-true}" = "true" ]; then
             docker rmi -f "${FULL_GHCR_TAG}" 2>/dev/null || true
         fi
     else
@@ -226,7 +226,7 @@ while read -r tag url || [ -n "$tag" ]; do
     echo "7. Cleaning up local tarball..."
     rm -f "${TAR_FILE}"
 
-    if [ "${CLEANUP_DOCKER_IMAGES:-false}" = "true" ]; then
+    if [ "${CLEANUP_DOCKER_IMAGES:-true}" = "true" ]; then
         echo "Removing local Docker image ${FULL_IMAGE_TAG} to save disk space..."
         docker rmi -f "${FULL_IMAGE_TAG}" 2>/dev/null || true
     fi

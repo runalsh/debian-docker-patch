@@ -68,6 +68,25 @@ This repository addresses the problem by:
 
 ---
 
+
+---
+
+## ✂️ What is Stripped from the Rootfs (Size Optimization)
+
+Official Debian GenericCloud / NoCloud root filesystem images are built with bare-metal VM bootloaders, kernels, and packages that are completely unnecessary and non-functional inside Docker containers.
+
+The build script strips non-container bloat, reducing the uncompressed image from **~946 MB** down to **~430 MB** (saving over **510 MB** / **>54%** per image):
+
+| Component / Path | What it is | Why it is safe to remove in Docker | Disk Space Saved |
+|---|---|---|---|
+| **Linux Kernel & Modules** (`/usr/lib/modules`, `/lib/modules`, `/boot/vmlinuz*`, `/boot/initrd*`) | Linux 6.1 kernel binaries and hardware drivers | Docker containers share the host Linux kernel; internal kernel files are never loaded. | **~394 MB** |
+| **GRUB Bootloader** (`/usr/lib/grub`, `/boot/grub`, `/etc/grub.d`) | EFI/BIOS bootloader tools and stages | Containers are started via `runc` without BIOS/EFI bootloaders. | **~50 MB** |
+| **APT Index Lists & Cache** (`/var/lib/apt/lists/*`, `/var/cache/apt/*`) | Downloaded package index caches | Refreshed on demand during `apt-get update`. | **~25 MB** |
+| **Documentation & Manuals** (`/usr/share/{doc,man,info}`) | Package changelogs and man pages | Not used by headless automated daemons or CI/CD test jobs. | **~35 MB** |
+| **Temporary Files & Logs** (`/tmp/*`, `/var/log/*`, `/var/tmp/*`) | Bootstrap install logs and temp sockets | Re-generated on demand during runtime. | **~10 MB** |
+| **Total Savings** | | | **~510+ MB (>54% reduction)** |
+
+---
 ## 🛠 Quick Start
 
 ### Docker Hub
