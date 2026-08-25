@@ -40,8 +40,15 @@ jobs:
           fi
 
           if [ "$STATUS" = "online" ]; then
-            echo "Runner phylex is ONLINE. Using self-hosted runner."
-            echo 'runner_type=["self-hosted", "phylex"]' >> "$GITHUB_OUTPUT"
+            echo "Runner phylex is ONLINE."
+            HAS_LABEL=$(echo "$RESPONSE" | jq -r '.runners[] | select(.name=="phylex") | .labels[]? | select(.name=="phylex") | .name' 2>/dev/null || true)
+            if [ "$HAS_LABEL" = "phylex" ]; then
+              echo "Using labels: ['self-hosted', 'phylex']"
+              echo 'runner_type=["self-hosted", "phylex"]' >> "$GITHUB_OUTPUT"
+            else
+              echo "Using label: ['self-hosted']"
+              echo 'runner_type=["self-hosted"]' >> "$GITHUB_OUTPUT"
+            fi
           else
             echo "Runner phylex is not available ($STATUS). Falling back to ubuntu-latest."
             echo 'runner_type=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
