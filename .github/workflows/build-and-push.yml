@@ -96,4 +96,4 @@ jobs:
       - name: Cleanup Temporary Files
         if: always()
         run: |
-          sudo rm -rf /tmp/temp_rootfs_* temp_rootfs_* 2>/dev/null || true
+          sudo rm -rf /tmp/debian-patch_* temp_rootfs_* 2>/dev/null || true

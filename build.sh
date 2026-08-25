@@ -29,7 +29,7 @@ if [ ! -f "$RELEASES_FILE" ]; then
 fi
 
 # Pre-cleanup temporary files from previous runs
-rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
+rm -rf /tmp/debian-patch_* temp_rootfs_*
 
 echo "Starting process for image repository: ${IMAGE_NAME}"
 
@@ -102,7 +102,7 @@ while read -r tag url || [ -n "$tag" ]; do
         fi
     fi
 
-    TAR_FILE="/tmp/temp_rootfs_${tag}.tar.xz"
+    TAR_FILE="/tmp/debian-patch_rootfs_${tag}.tar.xz"
     CREATED_TAGS=("${FULL_IMAGE_TAG}")
 
     cleanup_iteration() {
@@ -122,16 +122,16 @@ while read -r tag url || [ -n "$tag" ]; do
     ABS_TAR_PATH="${TAR_FILE}"
     docker run --rm --privileged -v "${ABS_TAR_PATH}:/work/rootfs.tar.xz:ro" alpine sh -c '
         apk add --no-cache tar xz 7zip >/dev/null 2>&1
-        mkdir -p /tmp/parts /tmp/mount_rootfs
-        tar -xf /work/rootfs.tar.xz -C /tmp/parts
-        7z x /tmp/parts/disk.raw -o/tmp/parts 0.img -y >/dev/null 2>&1 || true
-        if [ -f /tmp/parts/0.img ]; then
-            mount -o loop,ro /tmp/parts/0.img /tmp/mount_rootfs
+        mkdir -p /tmp/debian-patch_parts /tmp/debian-patch_mount
+        tar -xf /work/rootfs.tar.xz -C /tmp/debian-patch_parts
+        7z x /tmp/debian-patch_parts/disk.raw -o/tmp/debian-patch_parts 0.img -y >/dev/null 2>&1 || true
+        if [ -f /tmp/debian-patch_parts/0.img ]; then
+            mount -o loop,ro /tmp/debian-patch_parts/0.img /tmp/debian-patch_mount
         else
-            mount -o loop,ro /tmp/parts/disk.raw /tmp/mount_rootfs
+            mount -o loop,ro /tmp/debian-patch_parts/disk.raw /tmp/debian-patch_mount
         fi
-        tar -C /tmp/mount_rootfs             --exclude="./usr/lib/modules"             --exclude="./lib/modules"             --exclude="./boot/vmlinuz*"             --exclude="./boot/initrd*"             --exclude="./boot/System.map*"             --exclude="./boot/config*"             --exclude="./usr/lib/grub"             --exclude="./boot/grub"             --exclude="./etc/grub.d"             --exclude="./var/cache/apt/*"             --exclude="./var/lib/apt/lists/*"             --exclude="./usr/share/doc/*"             --exclude="./usr/share/man/*"             --exclude="./usr/share/info/*"             --exclude="./tmp/*"             --exclude="./var/log/*"             --exclude="./var/tmp/*"             -c .
-        umount /tmp/mount_rootfs
+        tar -C /tmp/debian-patch_mount             --exclude="./usr/lib/modules"             --exclude="./lib/modules"             --exclude="./boot/vmlinuz*"             --exclude="./boot/initrd*"             --exclude="./boot/System.map*"             --exclude="./boot/config*"             --exclude="./usr/lib/grub"             --exclude="./boot/grub"             --exclude="./etc/grub.d"             --exclude="./var/cache/apt/*"             --exclude="./var/lib/apt/lists/*"             --exclude="./usr/share/doc/*"             --exclude="./usr/share/man/*"             --exclude="./usr/share/info/*"             --exclude="./tmp/*"             --exclude="./var/log/*"             --exclude="./var/tmp/*"             -c .
+        umount /tmp/debian-patch_mount
     ' | docker import       -c 'ENV LANG=C.UTF-8'       -c 'CMD ["/bin/bash"]'       - "${FULL_IMAGE_TAG}"
 
     rm -f "${TAR_FILE}"
@@ -251,6 +251,6 @@ if [ ${#MISMATCHED_TAGS[@]} -gt 0 ]; then
     echo "=========================================="
     exit 1
 else
-        rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
+        rm -rf /tmp/debian-patch_* temp_rootfs_*
     echo "All images processed and verified successfully!"
 fi
