@@ -93,7 +93,8 @@ jobs:
           SKIP_EXISTS_CHECK: ${{ inputs.skip_exists_check || 'false' }}
         run: ./build.sh
 
-      - name: Cleanup Temporary Files
+      - name: Cleanup Temporary Files and Docker Images
         if: always()
         run: |
           sudo rm -rf /tmp/debian-patch_* temp_rootfs_* 2>/dev/null || true
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep -E '^((ghcr\.io/)?runalsh/debian-patch)(:|$)' | xargs -r docker rmi -f 2>/dev/null || true
