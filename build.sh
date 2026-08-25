@@ -28,6 +28,8 @@ if [ ! -f "$RELEASES_FILE" ]; then
     exit 1
 fi
 
+# Pre-cleanup temporary files from previous runs
+rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
 mkdir -p trivy-reports
 
 echo "Starting process for image repository: ${IMAGE_NAME}"
@@ -106,13 +108,24 @@ while read -r tag url || [ -n "$tag" ]; do
         fi
     fi
 
-    TAR_FILE="temp_rootfs_${tag}.tar.xz"
+    TAR_FILE="/tmp/temp_rootfs_${tag}.tar.xz"
+    CREATED_TAGS=("${FULL_IMAGE_TAG}")
+
+    cleanup_iteration() {
+        rm -f "${TAR_FILE:-}"
+        if [ "${CLEANUP_DOCKER_IMAGES:-true}" = "true" ] && [ ${#CREATED_TAGS[@]} -gt 0 ]; then
+            for img_tag in "${CREATED_TAGS[@]}"; do
+                docker rmi -f "${img_tag}" 2>/dev/null || true
+            done
+        fi
+    }
+    trap cleanup_iteration EXIT INT TERM HUP
 
     echo "1. Downloading image archive..."
     curl -fSL -sS --show-error -o "${TAR_FILE}" "${url}"
 
     echo "2. Extracting and optimizing rootfs (excluding kernel, modules, grub, caches, docs)..."
-    ABS_TAR_PATH="$(pwd)/${TAR_FILE}"
+    ABS_TAR_PATH="${TAR_FILE}"
     docker run --rm --privileged -v "${ABS_TAR_PATH}:/work/rootfs.tar.xz:ro" alpine sh -c '
         apk add --no-cache tar xz 7zip >/dev/null 2>&1
         mkdir -p /tmp/parts /tmp/mount_rootfs
@@ -170,6 +183,7 @@ while read -r tag url || [ -n "$tag" ]; do
             MAJOR_TAG="${IMAGE_NAME}:${MAJOR_VER}"
             echo "Pushing major alias tag to Docker Hub (${MAJOR_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${MAJOR_TAG}"
+            CREATED_TAGS+=("${MAJOR_TAG}")
             docker push "${MAJOR_TAG}" || true
 
             CODENAME="bookworm"
@@ -177,6 +191,7 @@ while read -r tag url || [ -n "$tag" ]; do
             CODENAME_TAG="${IMAGE_NAME}:${CODENAME}"
             echo "Pushing codename alias tag to Docker Hub (${CODENAME_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${CODENAME_TAG}"
+            CREATED_TAGS+=("${CODENAME_TAG}")
             docker push "${CODENAME_TAG}" || true
         fi
 
@@ -184,6 +199,7 @@ while read -r tag url || [ -n "$tag" ]; do
             LATEST_TAG="${IMAGE_NAME}:latest"
             echo "Pushing latest tag to Docker Hub (${LATEST_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${LATEST_TAG}"
+            CREATED_TAGS+=("${LATEST_TAG}")
             docker push "${LATEST_TAG}" || true
         fi
     else
@@ -193,12 +209,14 @@ while read -r tag url || [ -n "$tag" ]; do
     if [ "${NEEDS_GHCR_PUSH}" = "true" ] || [ "${PUSH_TO_GHCR:-false}" = "true" ]; then
         echo "6. Pushing image to GitHub Packages / GHCR (${FULL_GHCR_TAG})..."
         docker tag "${FULL_IMAGE_TAG}" "${FULL_GHCR_TAG}"
+        CREATED_TAGS+=("${FULL_GHCR_TAG}")
         docker push "${FULL_GHCR_TAG}" || true
 
         if [ "$IS_LATEST_MAJOR" = "true" ]; then
             GHCR_MAJOR_TAG="${GHCR_IMAGE_NAME}:${MAJOR_VER}"
             echo "Pushing major alias tag to GHCR (${GHCR_MAJOR_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${GHCR_MAJOR_TAG}"
+            CREATED_TAGS+=("${GHCR_MAJOR_TAG}")
             docker push "${GHCR_MAJOR_TAG}" || true
 
             CODENAME="bookworm"
@@ -206,6 +224,7 @@ while read -r tag url || [ -n "$tag" ]; do
             GHCR_CODENAME_TAG="${GHCR_IMAGE_NAME}:${CODENAME}"
             echo "Pushing codename alias tag to GHCR (${GHCR_CODENAME_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${GHCR_CODENAME_TAG}"
+            CREATED_TAGS+=("${GHCR_CODENAME_TAG}")
             docker push "${GHCR_CODENAME_TAG}" || true
         fi
 
@@ -213,6 +232,7 @@ while read -r tag url || [ -n "$tag" ]; do
             GHCR_LATEST_TAG="${GHCR_IMAGE_NAME}:latest"
             echo "Pushing latest tag to GHCR (${GHCR_LATEST_TAG})..."
             docker tag "${FULL_IMAGE_TAG}" "${GHCR_LATEST_TAG}"
+            CREATED_TAGS+=("${GHCR_LATEST_TAG}")
             docker push "${GHCR_LATEST_TAG}" || true
         fi
 
@@ -223,13 +243,9 @@ while read -r tag url || [ -n "$tag" ]; do
         echo "6. Skipping GHCR push."
     fi
 
-    echo "7. Cleaning up local tarball..."
-    rm -f "${TAR_FILE}"
-
-    if [ "${CLEANUP_DOCKER_IMAGES:-true}" = "true" ]; then
-        echo "Removing local Docker image ${FULL_IMAGE_TAG} to save disk space..."
-        docker rmi -f "${FULL_IMAGE_TAG}" 2>/dev/null || true
-    fi
+    echo "7. Cleaning up iteration artifacts and pruning all local Docker tags..."
+    cleanup_iteration
+    CREATED_TAGS=()
 
     echo "Successfully completed processing for tag ${tag}!"
     echo
