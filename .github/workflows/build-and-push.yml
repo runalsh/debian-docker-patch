@@ -111,3 +111,8 @@ jobs:
         with:
           name: debian-sbom-reports
           path: trivy-reports/
+
+      - name: Cleanup Trivy Cache and Temporary Files
+        if: always()
+        run: |
+          sudo rm -rf /tmp/trivy* ~/.cache/trivy /tmp/temp_rootfs_* 2>/dev/null || true

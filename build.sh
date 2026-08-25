@@ -29,7 +29,7 @@ if [ ! -f "$RELEASES_FILE" ]; then
 fi
 
 # Pre-cleanup temporary files from previous runs
-rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
+rm -rf temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz /tmp/trivy* ~/.cache/trivy
 mkdir -p trivy-reports
 
 echo "Starting process for image repository: ${IMAGE_NAME}"
@@ -257,5 +257,6 @@ if [ ${#MISMATCHED_TAGS[@]} -gt 0 ]; then
     echo "=========================================="
     exit 1
 else
+        rm -rf /tmp/trivy* ~/.cache/trivy 2>/dev/null || true
     echo "All images processed and verified successfully!"
 fi
