@@ -29,8 +29,7 @@ if [ ! -f "$RELEASES_FILE" ]; then
 fi
 
 # Pre-cleanup temporary files from previous runs
-rm -rf temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz /tmp/trivy* ~/.cache/trivy
-mkdir -p trivy-reports
+rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
 
 echo "Starting process for image repository: ${IMAGE_NAME}"
 
@@ -164,14 +163,9 @@ while read -r tag url || [ -n "$tag" ]; do
         echo "3. Skipping version verification (TEST_VERSION is false)."
     fi
 
-    if command -v trivy &>/dev/null || [ "${ENABLE_TRIVY_SCAN:-false}" = "true" ]; then
-        echo "4. Generating Trivy SBOM and vulnerability files..."
-        trivy image --format spdx-json --output "trivy-reports/sbom-${tag}.json" "${FULL_IMAGE_TAG}" 2>/dev/null || true
-        trivy image --format json --output "trivy-reports/vulnerabilities-${tag}.json" "${FULL_IMAGE_TAG}" 2>/dev/null || true
-    fi
 
     if [ "${NEEDS_DOCKERHUB_PUSH}" = "true" ] || [ "${PUSH_TO_DOCKERHUB:-false}" = "true" ]; then
-        echo "5. Pushing image to Docker Hub (${FULL_IMAGE_TAG})..."
+        echo "4. Pushing image to Docker Hub (${FULL_IMAGE_TAG})..."
         docker push "${FULL_IMAGE_TAG}" || true
         
         if [ "$IS_LATEST_MAJOR" = "true" ]; then
@@ -203,7 +197,7 @@ while read -r tag url || [ -n "$tag" ]; do
     fi
 
     if [ "${NEEDS_GHCR_PUSH}" = "true" ] || [ "${PUSH_TO_GHCR:-false}" = "true" ]; then
-        echo "6. Pushing image to GitHub Packages / GHCR (${FULL_GHCR_TAG})..."
+        echo "5. Pushing image to GitHub Packages / GHCR (${FULL_GHCR_TAG})..."
         docker tag "${FULL_IMAGE_TAG}" "${FULL_GHCR_TAG}"
         CREATED_TAGS+=("${FULL_GHCR_TAG}")
         docker push "${FULL_GHCR_TAG}" || true
@@ -239,7 +233,7 @@ while read -r tag url || [ -n "$tag" ]; do
         echo "6. Skipping GHCR push."
     fi
 
-    echo "7. Cleaning up iteration artifacts and pruning all local Docker tags..."
+    echo "6. Cleaning up iteration artifacts and pruning all local Docker tags..."
     cleanup_iteration
     CREATED_TAGS=()
 
@@ -257,6 +251,6 @@ if [ ${#MISMATCHED_TAGS[@]} -gt 0 ]; then
     echo "=========================================="
     exit 1
 else
-        rm -rf /tmp/trivy* ~/.cache/trivy 2>/dev/null || true
+        rm -f temp_rootfs_*.tar.xz /tmp/temp_rootfs_*.tar.xz
     echo "All images processed and verified successfully!"
 fi

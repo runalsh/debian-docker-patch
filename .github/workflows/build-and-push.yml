@@ -64,17 +64,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Trivy
-        run: |
-          if ! command -v trivy &>/dev/null; then
-            sudo apt-get update -qq || true
-            sudo apt-get install -y -qq wget apt-transport-https gnupg lsb-release || true
-            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-            sudo apt-get update -qq || true
-            sudo apt-get install -y -qq trivy || true
-          fi
-
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request' && env.DOCKERHUB_TOKEN != ''
         uses: docker/login-action@v3
@@ -102,17 +91,9 @@ jobs:
           PUSH_TO_GHCR: 'true'
           CLEANUP_DOCKER_IMAGES: 'true'
           SKIP_EXISTS_CHECK: ${{ inputs.skip_exists_check || 'false' }}
-          ENABLE_TRIVY_SCAN: 'true'
-        run: ./build.sh
+                  run: ./build.sh
 
-      - name: Upload Trivy SBOM Artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: debian-sbom-reports
-          path: trivy-reports/
-
-      - name: Cleanup Trivy Cache and Temporary Files
+      - name: Cleanup Temporary Files
         if: always()
         run: |
-          sudo rm -rf /tmp/trivy* ~/.cache/trivy /tmp/temp_rootfs_* 2>/dev/null || true
+          sudo rm -rf /tmp/temp_rootfs_* temp_rootfs_* 2>/dev/null || true

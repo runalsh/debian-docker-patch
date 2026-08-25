@@ -23,7 +23,6 @@ This repository addresses the problem by:
 - Using official root filesystem archives (**nocloud-amd64 tar.xz**) directly from Debian Cloud (`cloud.debian.org`).
 - Building and validating clean Docker images for each exact Debian point release.
 - Automatically validating `/etc/os-release` against the expected version tag before publishing.
-- Generating SPDX SBOM files and scanning for vulnerabilities using **Trivy** without blocking the pipeline.
 - Automatically publishing ready-to-use Docker images to **Docker Hub** (`runalsh/debian-patch`) and **GitHub Container Registry** (`ghcr.io/runalsh/debian-patch`).
 
 ---
@@ -131,7 +130,6 @@ The `build.sh` script supports the following configuration environment variables
 | `PUSH_TO_GHCR` | `false` | When set to `true`, automatically pushes built images to GitHub Packages / GHCR (`ghcr.io/runalsh/debian-patch:<tag>`). |
 | `CLEANUP_DOCKER_IMAGES` | `false` | When set to `true`, deletes local Docker images (`docker rmi`) after build and push to conserve disk space. |
 | `SKIP_EXISTS_CHECK` | `false` | When set to `false`, checks if the image tag already exists and skips download/build if present. Set to `true` to force building all tags regardless of remote registry status. |
-| `ENABLE_TRIVY_SCAN` | `false` | When set to `true` (or when `trivy` binary is present), generates SPDX SBOM reports (`trivy-reports/sbom-<tag>.json`) and logs vulnerabilities to stdout without failing the build pipeline (`--exit-code 0`). |
 
 ---
 
