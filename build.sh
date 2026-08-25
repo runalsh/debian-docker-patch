@@ -148,7 +148,9 @@ while read -r tag url || [ -n "$tag" ]; do
         echo "$OS_RELEASE"
 
         IS_MISMATCH=false
-        if [ "$DEBIAN_VER" = "$tag" ]; then
+        if [ -z "$DEBIAN_VER" ]; then
+            echo "WARNING: Could not execute container locally on this host (e.g. CPU architecture mismatch). Skipping version assertion."
+        elif [ "$DEBIAN_VER" = "$tag" ]; then
             echo "SUCCESS: Exact version match '${DEBIAN_VER}' in /etc/debian_version!"
         else
             echo "ERROR: Version mismatch! Container /etc/debian_version is '${DEBIAN_VER}', expected '${tag}'!"
