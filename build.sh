@@ -34,9 +34,6 @@ mkdir -p trivy-reports
 
 echo "Starting process for image repository: ${IMAGE_NAME}"
 
-# Determine latest tags for track 12 and track 13
-LATEST_12=$(grep -E "^12\." "$RELEASES_FILE" | sort -V | tail -n 1 | awk '{print $1}')
-LATEST_13=$(grep -E "^13\." "$RELEASES_FILE" | sort -V | tail -n 1 | awk '{print $1}')
 OVERALL_LATEST=$(sort -V "$RELEASES_FILE" | tail -n 1 | awk '{print $1}')
 
 while read -r tag url || [ -n "$tag" ]; do
@@ -52,14 +49,12 @@ while read -r tag url || [ -n "$tag" ]; do
     FULL_GHCR_TAG="${GHCR_IMAGE_NAME}:${tag}"
 
     MAJOR_VER=$(echo "${tag}" | cut -d'.' -f1)
+    LATEST_IN_TRACK=$(grep -E "^${MAJOR_VER}\." "$RELEASES_FILE" | sort -V | tail -n 1 | awk '{print $1}')
     
     IS_LATEST_MAJOR=false
-    if [ "$MAJOR_VER" = "12" ] && [ "$tag" = "$LATEST_12" ]; then
+    if [ "$tag" = "$LATEST_IN_TRACK" ]; then
         IS_LATEST_MAJOR=true
-        echo "Tag ${tag} is latest for Debian 12. Will tag as 12 & bookworm!"
-    elif [ "$MAJOR_VER" = "13" ] && [ "$tag" = "$LATEST_13" ]; then
-        IS_LATEST_MAJOR=true
-        echo "Tag ${tag} is latest for Debian 13. Will tag as 13 & trixie!"
+        echo "Tag ${tag} is latest for Debian ${MAJOR_VER} track. Will automatically tag as major ${MAJOR_VER} & codename alias!"
     fi
 
     IS_OVERALL_LATEST=false
@@ -186,13 +181,14 @@ while read -r tag url || [ -n "$tag" ]; do
             CREATED_TAGS+=("${MAJOR_TAG}")
             docker push "${MAJOR_TAG}" || true
 
-            CODENAME="bookworm"
-            [ "$MAJOR_VER" = "13" ] && CODENAME="trixie"
-            CODENAME_TAG="${IMAGE_NAME}:${CODENAME}"
-            echo "Pushing codename alias tag to Docker Hub (${CODENAME_TAG})..."
-            docker tag "${FULL_IMAGE_TAG}" "${CODENAME_TAG}"
-            CREATED_TAGS+=("${CODENAME_TAG}")
-            docker push "${CODENAME_TAG}" || true
+            CODENAME=$(docker run --rm "${FULL_IMAGE_TAG}" sh -c '. /etc/os-release 2>/dev/null && echo "$VERSION_CODENAME"' 2>/dev/null || echo "")
+            if [ -n "$CODENAME" ]; then
+                CODENAME_TAG="${IMAGE_NAME}:${CODENAME}"
+                echo "Pushing codename alias tag to Docker Hub (${CODENAME_TAG})..."
+                docker tag "${FULL_IMAGE_TAG}" "${CODENAME_TAG}"
+                CREATED_TAGS+=("${CODENAME_TAG}")
+                docker push "${CODENAME_TAG}" || true
+            fi
         fi
 
         if [ "$IS_OVERALL_LATEST" = "true" ]; then
@@ -219,13 +215,13 @@ while read -r tag url || [ -n "$tag" ]; do
             CREATED_TAGS+=("${GHCR_MAJOR_TAG}")
             docker push "${GHCR_MAJOR_TAG}" || true
 
-            CODENAME="bookworm"
-            [ "$MAJOR_VER" = "13" ] && CODENAME="trixie"
-            GHCR_CODENAME_TAG="${GHCR_IMAGE_NAME}:${CODENAME}"
-            echo "Pushing codename alias tag to GHCR (${GHCR_CODENAME_TAG})..."
-            docker tag "${FULL_IMAGE_TAG}" "${GHCR_CODENAME_TAG}"
-            CREATED_TAGS+=("${GHCR_CODENAME_TAG}")
-            docker push "${GHCR_CODENAME_TAG}" || true
+            if [ -n "$CODENAME" ]; then
+                GHCR_CODENAME_TAG="${GHCR_IMAGE_NAME}:${CODENAME}"
+                echo "Pushing codename alias tag to GHCR (${GHCR_CODENAME_TAG})..."
+                docker tag "${FULL_IMAGE_TAG}" "${GHCR_CODENAME_TAG}"
+                CREATED_TAGS+=("${GHCR_CODENAME_TAG}")
+                docker push "${GHCR_CODENAME_TAG}" || true
+            fi
         fi
 
         if [ "$IS_OVERALL_LATEST" = "true" ]; then
