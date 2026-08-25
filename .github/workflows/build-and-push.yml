@@ -91,7 +91,7 @@ jobs:
           PUSH_TO_GHCR: 'true'
           CLEANUP_DOCKER_IMAGES: 'true'
           SKIP_EXISTS_CHECK: ${{ inputs.skip_exists_check || 'false' }}
-                  run: ./build.sh
+        run: ./build.sh
 
       - name: Cleanup Temporary Files
         if: always()
