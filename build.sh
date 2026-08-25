@@ -181,6 +181,10 @@ while read -r tag url || [ -n "$tag" ]; do
             docker push "${MAJOR_TAG}" || true
 
             CODENAME=$(docker run --rm "${FULL_IMAGE_TAG}" sh -c '. /etc/os-release 2>/dev/null && echo "$VERSION_CODENAME"' 2>/dev/null || echo "")
+            if [ -z "$CODENAME" ]; then
+                [ "$MAJOR_VER" = "12" ] && CODENAME="bookworm"
+                [ "$MAJOR_VER" = "13" ] && CODENAME="trixie"
+            fi
             if [ -n "$CODENAME" ]; then
                 CODENAME_TAG="${IMAGE_NAME}:${CODENAME}"
                 echo "Pushing codename alias tag to Docker Hub (${CODENAME_TAG})..."
