@@ -64,6 +64,7 @@ This repository addresses the problem by:
 | `13.4` | `Debian 13.4` | [`runalsh/debian-patch:13.4`](https://hub.docker.com/r/runalsh/debian-patch/tags) | [`ghcr.io/runalsh/debian-patch:13.4`](https://github.com/users/runalsh/packages/container/package/debian-patch) |
 | `13.5` | `Debian 13.5` | [`runalsh/debian-patch:13.5`](https://hub.docker.com/r/runalsh/debian-patch/tags) | [`ghcr.io/runalsh/debian-patch:13.5`](https://github.com/users/runalsh/packages/container/package/debian-patch) |
 | `13.6` | `Debian 13.6` | [`runalsh/debian-patch:13.6`](https://hub.docker.com/r/runalsh/debian-patch/tags) | [`ghcr.io/runalsh/debian-patch:13.6`](https://github.com/users/runalsh/packages/container/package/debian-patch) |
+| `13.7` | `Debian 13.7` | [`runalsh/debian-patch:13.7`](https://hub.docker.com/r/runalsh/debian-patch/tags) | [`ghcr.io/runalsh/debian-patch:13.7`](https://github.com/users/runalsh/packages/container/package/debian-patch) |
 
 ---
 
